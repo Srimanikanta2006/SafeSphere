@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import SirenAlarm from "@/components/SirenAlarm";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -25,6 +26,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-slate-50 text-slate-900">
         {children}
+        <SirenAlarm />
       </body>
     </html>
   );

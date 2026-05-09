@@ -5,36 +5,50 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       detections,
-      context, // e.g., "indoors", "home", "night"
-      movementPattern,
-      userInteraction, // Did they dismiss previous alerts?
+      context, // e.g., "indoors", "outdoors", "home", "night"
+      movementPattern, // "single_impact_no_rotation", "erratic", etc.
+      userInteraction, // "ignored", "prank", "responsive"
       timestamp
     } = body;
 
-    // Logic for false-positive reduction
+    // Validation Agent - False-positive reduction layer
+    // Purpose: "Is this likely real?"
     let isValid = true;
-    let confidence = 0.8;
-    let reasoning = "";
+    let confidence = 0.9;
+    let reasoning = "Sensors indicate a genuine emergency pattern.";
 
-    // Example check: Phone drop vs Real fall
-    if (detections.fallDetected && movementPattern === 'single_impact_no_rotation') {
-      isValid = false;
-      confidence = 0.4;
-      reasoning = "Impact pattern resembles a simple phone drop rather than a human fall.";
+    // Check 1: Phone drop vs Real fall
+    if (detections.fallDetected || detections.violentMotion) {
+      if (movementPattern === 'single_impact_no_rotation') {
+        isValid = false;
+        confidence = 0.4;
+        reasoning = "Validation: Impact pattern resembles a simple phone drop rather than a human fall. Alert suppressed.";
+      }
     }
 
-    // Example check: TV scream vs Real scream
-    if (detections.screamProbability > 0.7 && context === 'home' && userInteraction === 'ignored') {
-      isValid = false;
-      confidence = 0.3;
-      reasoning = "Environmental noise or media detected in a safe zone with no user reaction.";
+    // Check 2: TV scream vs Real scream
+    if (detections.screamProbability > 0.7) {
+      if (context === 'home' && userInteraction === 'ignored') {
+        isValid = false;
+        confidence = 0.3;
+        reasoning = "Validation: Audio matches screaming, but context implies TV/Media (home zone, no user reaction). Alert suppressed.";
+      }
     }
 
-    // Example check: Campfire vs Fire alert
-    if (detections.fireProbability > 0.5 && context === 'outdoors' && timestamp.includes('20:00')) {
-      isValid = true;
-      confidence = 0.6; // Moderate confidence
-      reasoning = "Fire detected outdoors at night; validating against smoke density.";
+    // Check 3: Campfire vs Dangerous fire
+    if (detections.fireProbability > 0.5) {
+      if (context === 'outdoors' && detections.smokeIncreasing === false) {
+        isValid = false;
+        confidence = 0.5;
+        reasoning = "Validation: Fire detected outdoors but no increasing smoke/spread. Likely a controlled campfire. Alert suppressed.";
+      }
+    }
+
+    // Check 4: Prank vs Emergency
+    if (userInteraction === 'prank_history_detected' || userInteraction === 'immediate_dismiss') {
+       isValid = false;
+       confidence = 0.1;
+       reasoning = "Validation: User behavior suggests a non-emergency or false alarm. Alert suppressed.";
     }
 
     return NextResponse.json({

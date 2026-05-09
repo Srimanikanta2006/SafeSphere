@@ -24,14 +24,14 @@ export default function IntelligenceStats() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.1 }}
         >
-          <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+          <Card className="border-slate-200 shadow-md bg-white hover:border-primary/50 transition-all">
             <CardContent className="p-4 flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center shrink-0`}>
+              <div className={`w-10 h-10 rounded-xl ${stat.bg} border border-slate-100 flex items-center justify-center shrink-0`}>
                 <stat.icon className={`w-5 h-5 ${stat.color}`} />
               </div>
               <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{stat.label}</span>
-                <span className="text-lg font-bold text-slate-700">{stat.value}</span>
+                <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest">{stat.label}</span>
+                <span className="text-lg font-black text-slate-800">{stat.value}</span>
               </div>
             </CardContent>
           </Card>

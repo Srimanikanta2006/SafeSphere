@@ -81,8 +81,22 @@ class ValidationEngine:
 
         # Severity Mapping
         level = "LOW"
-        if score >= 86: level = "CRITICAL"
-        elif score >= 61: level = "HIGH"
-        elif score >= 31: level = "MODERATE"
+        reasoning = "System normal. Baseline anomalies are within safe thresholds."
+        
+        if score >= 86: 
+            level = "CRITICAL"
+            reasoning = "CRITICAL: Multiple high-risk agents in consensus. Immediate multimodal threat verified."
+        elif score >= 61: 
+            level = "HIGH"
+            reasoning = "HIGH: Significant anomalies detected. High probability of emergency. Unified response recommended."
+        elif score >= 31: 
+            level = "MODERATE"
+            reasoning = "MODERATE: Persistent anomalies detected. System monitoring for escalation."
 
-        return {"level": level, "score": score}
+        # Add specific insights
+        if 'audio' in types_detected and fire_events:
+            reasoning += " (Cross-Agent Alert: Audio Distress + Visual Fire Signature)"
+        elif 'audio' in types_detected and 'motion' in types_detected:
+            reasoning += " (Cross-Agent Alert: Audio Distress + Sudden Impact)"
+
+        return {"level": level, "score": score, "reasoning": reasoning}

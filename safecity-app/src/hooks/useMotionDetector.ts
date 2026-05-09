@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
 
 export function useMotionDetector() {
-  const { updateDetections } = useAppStore();
+  const { updateDetections, setSosState, setSafetyScore } = useAppStore();
   const lastUpdate = useRef(0);
 
   useEffect(() => {
@@ -16,6 +16,17 @@ export function useMotionDetector() {
         y: event.accelerationIncludingGravity?.y || 0,
         z: event.accelerationIncludingGravity?.z || 0
       };
+
+      // Calculate magnitude of acceleration
+      const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
+      
+      // Jerk Detection (Sudden spike > 25 m/s^2 indicates violent motion or impact)
+      if (magnitude > 25) {
+        console.warn("SafeSphere: Sudden Jerk Detected! Triggering Emergency Protocol.");
+        setSafetyScore(90);
+        setSosState('active');
+        updateDetections({ violentMotion: true, impactMagnitude: magnitude });
+      }
 
       const gyro = {
         x: event.rotationRate?.alpha || 0,

@@ -16,7 +16,20 @@ from services.validation_service import ValidationEngine
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("SafeCity-Backend")
 
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
+from fastapi.middleware.cors import CORSMiddleware
+import base64
+
 app = FastAPI(title="SafeCity AI Intelligence Backend")
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # In-memory stores
 events_history = []
@@ -59,6 +72,37 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Body
+import base64
+
+@app.post("/process-audio")
+async def process_audio(payload: Dict = Body(...)):
+    """
+    Expects base64 encoded audio chunk (16kHz mono)
+    """
+    try:
+        audio_b64 = payload.get("audio")
+        if not audio_b64:
+            return {"status": "no_audio"}
+            
+        audio_bytes = base64.b64decode(audio_b64)
+        waveform = np.frombuffer(audio_bytes, dtype=np.float32)
+        
+        # Classify using YAMNet
+        result = audio_detector.predict(waveform)
+        
+        if result:
+            logger.info(f"AI Detection: {result['event']} (conf: {result['confidence']})")
+            events_history.append(result)
+            await manager.broadcast(json.dumps({"type": "EVENT", "data": result}))
+            update_severity()
+            return {"status": "detected", "event": result['event'], "confidence": result['confidence']}
+            
+        return {"status": "no_event"}
+    except Exception as e:
+        logger.error(f"Audio processing error: {e}")
+        return {"status": "error", "message": str(e)}
+
 @app.get("/status")
 async def get_status():
     return {"status": "online", "timestamp": datetime.now().isoformat()}
@@ -90,6 +134,32 @@ async def post_audio_event(event: AudioEvent):
 @app.get("/severity")
 async def get_severity():
     return current_severity
+
+@app.get("/risk-hotspots")
+async def get_risk_hotspots():
+    """
+    Generate dynamic hotspots based on recent events history.
+    """
+    hotspots = []
+    # Base city center
+    base_lat, base_lng = 12.9716, 77.5946
+    
+    # Analyze events to create hotspots
+    recent_events = events_history[-20:]
+    for i, event in enumerate(recent_events):
+        # Mock some spatial distribution for events
+        offset_lat = (hash(event.get('timestamp', '')) % 100) / 5000 - 0.01
+        offset_lng = (hash(event.get('event', '')) % 100) / 5000 - 0.01
+        
+        hotspots.append({
+            "lat": base_lat + offset_lat,
+            "lng": base_lng + offset_lng,
+            "radius": 300 + (event.get('confidence', 0.5) * 200),
+            "color": "red" if event.get('type') == 'audio' else "orange",
+            "label": f"AI Alert: {event.get('event')}"
+        })
+    
+    return hotspots
 
 @app.get("/events")
 async def get_events():

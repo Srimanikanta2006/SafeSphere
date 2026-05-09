@@ -7,35 +7,41 @@ export async function POST(request: Request) {
       severity,
       riskScore,
       userProfile,
-      location,
-      evidenceReady
+      location
     } = body;
 
+    // Dispatch Agent - Decide who to alert, when, how aggressively.
     let actions: string[] = [];
-    let responseType = "SOFT_ALERT"; // Default
+    let responseType = "MONITORING"; // Default
 
     // Decision Logic
     if (severity === 'CRITICAL') {
-      responseType = "EMERGENCY_MODE";
+      responseType = "IMMEDIATE_EMERGENCY_RESPONSE";
       actions = [
-        "ACTIVATE_LIVE_RECORDING",
-        "NOTIFY_FAMILY_IMMEDIATELY",
-        "ALERT_NEAREST_POLICE",
-        "DISPATCH_AMBULANCE",
-        "NOTIFY_NEARBY_VOLUNTEERS"
+        "call_ambulance",
+        "contact_police",
+        "notify_family",
+        "trigger_live_recording",
+        "alert_nearby_volunteers"
       ];
     } else if (severity === 'HIGH') {
-      responseType = "EMERGENCY_MODE";
+      responseType = "URGENT_ALERT";
       actions = [
-        "START_EVIDENCE_STORAGE",
-        "NOTIFY_TRUSTED_CONTACTS",
-        "TRIGGER_LIVE_GPS_STREAM"
+        "notify_user",
+        "notify_family",
+        "trigger_live_recording",
+        "alert_nearby_volunteers"
       ];
     } else if (severity === 'MODERATE') {
-      responseType = "SOFT_ALERT";
+      responseType = "WARNING";
       actions = [
-        "PROMPT_USER_CONFIRMATION",
-        "MONITOR_SENSORS_INTENSELY"
+        "notify_user",
+        "monitor_sensors_intensely"
+      ];
+    } else {
+      // LOW
+      actions = [
+        "log_event"
       ];
     }
 
@@ -44,8 +50,8 @@ export async function POST(request: Request) {
       actions,
       nextStep: severity === 'LOW' ? "CONTINUE_MONITORING" : "INITIATE_WORKFLOW",
       orchestration: {
-        familyNotified: severity === 'HIGH' || severity === 'CRITICAL',
-        emergencyServicesAlerted: severity === 'CRITICAL'
+        familyNotified: actions.includes('notify_family'),
+        emergencyServicesAlerted: actions.includes('contact_police') || actions.includes('call_ambulance')
       }
     });
 

@@ -1,60 +1,67 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const apiKey = process.env.GEMINI_API_KEY || 'dummy_key';
-const genAI = new GoogleGenerativeAI(apiKey);
-
-// We'll use the gemini-1.5-flash model as requested
-export const geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const getModel = () => {
+  // Try server-side first, then fallback to public key for demo
+  const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+  
+  if (!apiKey || apiKey === 'dummy_key') {
+    throw new Error('SafeSphere: Gemini API Key is missing. Please add GEMINI_API_KEY to .env.local');
+  }
+  
+  const genAI = new GoogleGenerativeAI(apiKey);
+  // Defaulting to gemini-1.5-flash as requested
+  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+};
 
 /**
- * Generate a short narrative summarizing the threat assessment.
+ * AI Agent for High-Level Safety Intelligence
  */
-export async function generateThreatNarrative(sensorData: any): Promise<string> {
-  const prompt = `A distress signal has been detected with the following sensor readings: ${JSON.stringify(sensorData)}. 
-In 2 sentences, describe the likely scenario and urgency level. 
-Respond in plain English for a dispatch operator.`;
+export async function askSentinelAgent(query: string, cityState: any): Promise<string> {
+  const prompt = `You are the SafeSphere AI Intelligence Agent. 
+You provide tactical safety analysis to the "Chief Officer" of the city.
+
+CURRENT CITY TELEMETRY:
+- Active Incidents: ${JSON.stringify(cityState.incidents)}
+- Safety Score: ${cityState.safetyScore}%
+- Status: ${cityState.incidents.length > 0 ? 'ACTIVE THREATS DETECTED' : 'NOMINAL'}
+
+MAP CONTROL CAPABILITY:
+If the user asks about a location or where something is, you can mark it on the tactical map by adding this tag at the END of your response:
+[[MAP_MARKER: lat, lng, label]]
+Example: "Chief, I have located the suspicious activity near MG Road. [[MAP_MARKER: 12.9716, 77.5946, Suspicious Activity]]"
+
+INSTRUCTIONS:
+1. Always address the user as "Chief".
+2. Be professional, data-driven, and technical.
+3. If risk is high, suggest immediate deployment.
+4. Keep standard responses under 3-4 sentences.
+5. If you mention a location, ALWAYS try to include a [[MAP_MARKER]] tag if you have the coordinates.
+
+User Query: "${query}"`;
 
   try {
-    const result = await geminiModel.generateContent(prompt);
-    return result.response.text();
-  } catch (error) {
-    console.error('Gemini API Error (Threat Narrative):', error);
-    return 'Emergency distress signal detected. Immediate attention may be required based on anomalous sensor readings.';
+    const model = getModel();
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    if (!text) throw new Error("Empty response from AI");
+    return text;
+  } catch (error: any) {
+    console.error('SafeSphere AI Error:', error);
+    
+    // Friendly error for the user
+    if (error.message?.includes('API_KEY_INVALID')) {
+       return "Chief, the neural link authentication failed. Please verify the Gemini API Key in the server configuration.";
+    }
+    
+    return "I am currently having trouble accessing the neural network, Chief. However, local diagnostics remain stable. Please cross-reference with dispatch for any active district threats.";
   }
 }
 
 /**
- * Generate a dispatch summary message for emergency contacts.
+ * Backward compatibility
  */
-export async function generateDispatchMessage(incidentData: any): Promise<string> {
-  const prompt = `An emergency incident of severity ${incidentData.severity} has been detected at ${incidentData.location.address || 'GPS ' + incidentData.location.lat + ',' + incidentData.location.lng} 
-at ${incidentData.timestamp}. Risk score: ${incidentData.riskScore}/100. 
-Write a 3-sentence dispatch notification for emergency contacts 
-that includes the location, urgency, and what they should do. Keep it calm but clear.`;
-
-  try {
-    const result = await geminiModel.generateContent(prompt);
-    return result.response.text();
-  } catch (error) {
-    console.error('Gemini API Error (Dispatch Message):', error);
-    return `Emergency alert triggered at ${incidentData.location.address || 'current location'}. Please attempt to contact the individual immediately. If unreachable, authorities may need to be notified.`;
-  }
-}
-
-/**
- * Generate a proactive safety tip based on historical data.
- */
-export async function generateSafetyWarning(historicalData: any, address: string, dayOfWeek: string, timeRange: string): Promise<string> {
-  const prompt = `Based on historical safety data, the area near ${address} has had ${historicalData.incidentCount} incidents 
-on ${dayOfWeek} evenings between ${timeRange}. 
-Write one short proactive safety tip for a user currently in or heading to this area. 
-Keep it under 25 words. Be specific, not generic.`;
-
-  try {
-    const result = await geminiModel.generateContent(prompt);
-    return result.response.text();
-  } catch (error) {
-    console.error('Gemini API Error (Safety Warning):', error);
-    return 'Exercise caution in this area during late hours due to historical incident patterns.';
-  }
+export async function processSafetyQuery(query: string, cityState: any) {
+  return await askSentinelAgent(query, cityState);
 }

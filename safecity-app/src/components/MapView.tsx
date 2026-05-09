@@ -11,10 +11,20 @@ const MapClient = dynamic(() => import('./MapClient'), {
   )
 });
 
-export default function MapView() {
+export default function MapView({ 
+  layers = { crime: true, accidents: true, fire: true, lighting: false, responders: false }, 
+  minSeverity = 'All',
+  externalCommand,
+  aiMarkers = []
+}: { 
+  layers?: any, 
+  minSeverity?: string,
+  externalCommand?: any,
+  aiMarkers?: any[]
+}) {
   return (
     <div className="w-full h-full relative z-0">
-      <MapClient />
+      <MapClient layers={layers} minSeverity={minSeverity} externalCommand={externalCommand} aiMarkers={aiMarkers} />
     </div>
   );
 }

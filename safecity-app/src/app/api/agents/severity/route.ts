@@ -4,24 +4,25 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      detections, // { screamProbability, fallDetected, fireProbability, keywordsDetected }
+      detections, // { screamProbability, fallDetected, fireProbability, violentMotion }
       userStatus, // "responsive" | "unresponsive"
       locationContext, // { isHighCrimeZone: boolean, isIndoor: boolean }
       environmentalSensors // { smokeIncreasing: boolean }
     } = body;
 
+    // Severity Agent - Estimate danger level based on point system
     let score = 0;
 
-    // Point System Logic
-    if (detections.screamProbability > 0.8) score += 30;
-    if (detections.fallDetected) score += 20;
-    if (userStatus === 'unresponsive') score += 40;
-    if (locationContext.isHighCrimeZone) score += 15;
-    if (detections.fireProbability > 0.6 && locationContext.isIndoor) score += 50;
-    if (environmentalSensors.smokeIncreasing) score += 30;
-    if (detections.keywordsDetected.length > 0) score += 25;
+    // Event Points mapping
+    if (detections.screamProbability > 0.7) score += 30; // scream detected
+    if (detections.violentMotion || detections.fallDetected) score += 20; // violent motion
+    if (userStatus === 'unresponsive') score += 40; // no response
+    if (locationContext?.isHighCrimeZone) score += 15; // high crime zone
+    if (detections.fireProbability > 0.5 && locationContext?.isIndoor) score += 50; // indoor fire
+    if (environmentalSensors?.smokeIncreasing) score += 30; // smoke increasing
 
     // Severity Level Mapping
+    // 0–30 Low, 31–60 Moderate, 61–85 High, 86+ Critical
     let level = "LOW";
     if (score >= 86) level = "CRITICAL";
     else if (score >= 61) level = "HIGH";
